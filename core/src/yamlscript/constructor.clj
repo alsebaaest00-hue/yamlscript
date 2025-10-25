@@ -8,7 +8,7 @@
   (:require
    [clojure.string :as str]
    [clojure.walk :as walk]
-   [yamlscript.ast :as ast :refer [Lst Map Qts Sym Vec]]
+   [yamlscript.ast :as ast :refer [Lst Map Qts Str Sym Vec]]
    [yamlscript.common]
    [yamlscript.global :as global]
    [yamlscript.re :as re])
@@ -134,9 +134,39 @@
                                 v (if t [(construct-tag-call v t)] v)]
                             [k (Lst (get-in v [0 :Lst]))])
                           %1)))
-                (mapcat identity)
+                (map (fn [[k v]]
+                       (let [key (str (:Sym k))]
+                         #_(WWW "key" key "k" k "v" v)
+                         (cond
+                           (re-matches re/symw key) [k v]
+                           (re-matches #"\{.*\}" key) [k v]
+                           ,
+                           (re-matches (re/re #"$symw(\s*$symw)+") key)
+                           [(Sym (str "[" key "]")) v]
+                           ,
+                           :else
+                           (let [syms (str/split key #"\s+")
+                                 rsyms syms
+                                 syms (remove #(= "&" %1) syms)
+                                 syms (map #(first (str/split %1 #"\.")) syms)
+                                 k (Vec (map Sym syms))
+                                 v (Lst (concat
+                                          [(Sym '+let)]
+                                          (vec (map Sym rsyms))
+                                          [v]))]
+                             [k v])))))
+                (apply concat)
                 vec))]
-        (construct-xmap {:xmap (mapcat identity rest)} ctx)))]])
+        (construct-xmap {:xmap (apply concat rest)} ctx)))]])
+
+(comment
+  (yamlscript.compiler/compile
+"
+!ys-0
+defn foo():
+  _ a _ b _ *c =: 1 .. 10
+")
+  )
 
 (defn check-let-bindings [xmap ctx]
   (let [[lets rest]
@@ -164,7 +194,7 @@
                        lhs (if (and
                                  (= 2 (count lhs))
                                  (= {:Sym 'def} (first lhs))
-                                 (re-find #"^[\[\{]"
+                                 (re-find #"(?:^\{|\s)"
                                    (str (:Sym (second lhs)))))
                              [(Sym '+def) (second lhs)]
                              lhs)

@@ -168,18 +168,17 @@
         (when expr
           (optimize-ys-expression expr))))))
 
-;; XXX The destructure vector is just a string here.
-;; Needs to be parsed into a proper AST node.
-(defn destruct-vec [s]
-  (let [s (if (re-find (re/re #"(?:^$ysym |\] )") s)
-            (str "[" s "]")
-            s)]
-    (str/replace s (re/re #"\[(.*)\*($ysym)\s*\]") "[$1 & $2]")))
-
 (defn build-def [{node :def}]
   (if-lets [m (re-matches re/defk node)
             v [(Sym "def")
-               (Sym (destruct-vec (m 1)))]]
+               (let [s (m 1)
+                     s (str/replace
+                         s #"^\[(.*)\]$"
+                         "$1")
+                     s (str/replace s
+                         (re/re #"^\s*(.*?)\s*\*($ysym)\s*")
+                         "$1 & $2")]
+                 (Sym s))]]
     (if (empty? (m 2))
       v
       (conj v (Sym (m 2))))))

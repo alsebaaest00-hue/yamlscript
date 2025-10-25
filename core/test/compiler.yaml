@@ -757,7 +757,7 @@
     !ys-0
     +[a b c] =: +[1 2 3]
   clojure: |
-    (+def [a b c] [1 2 3])
+    (+def a b c [1 2 3])
 
 
 - name: Destructuring def with multiple RHS
@@ -765,7 +765,7 @@
     !ys-0
     +[a b c] =: 1 2 3
   clojure: |
-    (+def [a b c] [1 2 3])
+    (+def a b c [1 2 3])
 
 
 - name: Multi-arity defn
@@ -1403,7 +1403,7 @@
     !ys-0
     a b c =: +[1 2 3]
   clojure: |
-    (+def [a b c] [1 2 3])
+    (+def a b c [1 2 3])
 
 
 - name: Colon chain calls
@@ -1624,7 +1624,7 @@
     defn foo():
       _ a _ b _ *c =: 1 .. 10
   clojure: |
-    (defn foo [] (let [[_ a _ b _ & c] (rng 1 10)]))
+    (defn foo [] (let [[_ a _ b _ c] (+let _ a _ b _ & c (rng 1 10))]))
 
 
 - name: Java interop method call with tilde
