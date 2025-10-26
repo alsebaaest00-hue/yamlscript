@@ -125,18 +125,17 @@
                 lets
                 flatten
                 (remove #(= {:Sym 'def} %1))
-                ;; Handle RHS is mapping
                 (partition 2)
-                (map #(let [[k v] %1]
-                        (if (:xmap v)
-                          (let [t (:! v)
-                                v (construct-xmap v ctx)
-                                v (if t [(construct-tag-call v t)] v)]
-                            [k (Lst (get-in v [0 :Lst]))])
-                          %1)))
+                ;; Handle RHS is mapping
+                (map (fn [[k v]]
+                       (if (:xmap v)
+                         (let [t (:! v)
+                               v (construct-xmap v ctx)
+                               v (if t [(construct-tag-call v t)] v)]
+                           [k (Lst (get-in v [0 :Lst]))])
+                         [k v])))
                 (map (fn [[k v]]
                        (let [key (str (:Sym k))]
-                         #_(WWW "key" key "k" k "v" v)
                          (cond
                            (re-matches re/symw key) [k v]
                            (re-matches #"\{.*\}" key) [k v]
@@ -160,12 +159,16 @@
         (construct-xmap {:xmap (apply concat rest)} ctx)))]])
 
 (comment
-  (yamlscript.compiler/compile
-"
+  (require '[clojure.pprint :as pp])
+  (binding [pp/*print-right-margin* 30]
+    (pp/pprint (read-string (yamlscript.compiler/compile
+                           "
 !ys-0
+a.b c =: d
+
 defn foo():
-  _ a _ b _ *c =: 1 .. 10
-")
+  a.b b =: c
+"))))
   )
 
 (defn check-let-bindings [xmap ctx]
