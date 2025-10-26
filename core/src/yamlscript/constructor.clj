@@ -127,7 +127,7 @@
                 (remove #(= {:Sym 'def} %1))
                 (partition 2)
                 ;; Handle RHS is mapping
-                (map (fn [[k v]]
+                #_(map (fn [[k v]]
                        (if (:xmap v)
                          (let [t (:! v)
                                v (construct-xmap v ctx)
@@ -149,10 +149,13 @@
                                  syms (remove #(= "&" %1) syms)
                                  syms (map #(first (str/split %1 #"\.")) syms)
                                  k (Vec (map Sym syms))
-                                 v (Lst (concat
-                                          [(Sym '+let)]
-                                          (vec (map Sym rsyms))
-                                          [v]))]
+                                 #_#_v (Lst (concat
+                                              [(Sym '+let)]
+                                              (vec (map Sym rsyms))
+                                              [v]))
+                                 v (Lst [(Sym '+let)
+                                         (Vec (vec (map Sym rsyms)))
+                                         v])]
                              [k v])))))
                 (apply concat)
                 vec))]
@@ -164,10 +167,9 @@
     (pp/pprint (read-string (yamlscript.compiler/compile
                            "
 !ys-0
-a.b c =: d
 
 defn foo():
-  a.b b =: c
+  a b.x *c =: d
 "))))
   )
 
