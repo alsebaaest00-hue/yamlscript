@@ -153,6 +153,7 @@
      and?
      call
      +def
+     +let
      each
      or?
      q ql qm qo qv qw

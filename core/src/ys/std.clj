@@ -950,6 +950,43 @@
 ;; Special functions
 ;;------------------------------------------------------------------------------
 
+(comment
+  (do
+    (intern 'ys.std 'eval clojure.core/eval)
+    (intern 'ys.std '+++ clojure.core/identity)
+    (intern 'ys.std 'say clojure.core/println)
+    (reset! global/X false)
+    (->>
+      "
+!ys-0
+m =: +{'q' 42}
+xs =: +[123 456]
+m z =: xs
+=>: m + z
+"
+      yamlscript.compiler/compile
+      WWW
+      (#(str "(do " % ")"))
+      read-string
+      eval))
+  )
+
+(defmacro +let [specs vals]
+  (let [syms (map #(first (str/split (str %1) #"\.")) specs)]
+    (loop [i 0, acc []]
+      (if (= i (count syms))
+        acc
+        (let [sym (symbol (nth syms i))
+              spec (str (nth specs i))
+              val (nth vals i)
+              value (if (re-find #"\." spec)
+                      (let [keys (vec (rest (str/split spec #"\.")))]
+                        (assoc-in (var-get (ns-resolve *ns* sym)) keys val))
+                      val)
+              acc (conj acc value)
+              i (inc i)]
+          (recur i acc))))))
+
 ;; Used to run a YS file as a Bash script:
 (defmacro source [& xs])
 

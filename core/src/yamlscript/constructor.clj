@@ -117,6 +117,29 @@
                     (Lst [(Sym tag) node])))))
       node tags)))
 
+(defn construct-binding [[k v]]
+  (let [[k v]
+        (let [key (str (:Sym k))]
+          (cond
+            (re-matches re/symw key) [k v]
+            (re-matches #"\{.*\}" key) [k v]
+            ,
+            (re-matches (re/re #"$symw(\s*$symw)+") key)
+            [(Sym (str "[" key "]")) v]
+            ,
+            :else
+            (let [syms (str/split key #"\s+")
+                  rsyms syms
+                  syms (remove #(= "&" %1) syms)
+                  syms (map #(first (str/split %1 #"\.")) syms)
+                  k (Vec (map Sym syms))
+                  v (Lst [(Sym '+let)
+                          (Vec (vec (map Str rsyms)))
+                          v])]
+              [k v])))]
+    (when @global/X (WWW "construct-binding" k v))
+    [k v]))
+
 (defn apply-let-bindings [lets rest ctx]
   [[(Sym "let")
     (vec
@@ -134,43 +157,25 @@
                                v (if t [(construct-tag-call v t)] v)]
                            [k (Lst (get-in v [0 :Lst]))])
                          [k v])))
-                (map (fn [[k v]]
-                       (let [key (str (:Sym k))]
-                         (cond
-                           (re-matches re/symw key) [k v]
-                           (re-matches #"\{.*\}" key) [k v]
-                           ,
-                           (re-matches (re/re #"$symw(\s*$symw)+") key)
-                           [(Sym (str "[" key "]")) v]
-                           ,
-                           :else
-                           (let [syms (str/split key #"\s+")
-                                 rsyms syms
-                                 syms (remove #(= "&" %1) syms)
-                                 syms (map #(first (str/split %1 #"\.")) syms)
-                                 k (Vec (map Sym syms))
-                                 #_#_v (Lst (concat
-                                              [(Sym '+let)]
-                                              (vec (map Sym rsyms))
-                                              [v]))
-                                 v (Lst [(Sym '+let)
-                                         (Vec (vec (map Sym rsyms)))
-                                         v])]
-                             [k v])))))
+                (map construct-binding)
                 (apply concat)
                 vec))]
         (construct-xmap {:xmap (apply concat rest)} ctx)))]])
 
 (comment
   (require '[clojure.pprint :as pp])
-  (binding [pp/*print-right-margin* 30]
-    (pp/pprint (read-string (yamlscript.compiler/compile
-                           "
+  (defn cc [s]
+    (binding [pp/*print-right-margin* 30]
+      (pp/pprint (read-string (yamlscript.compiler/compile s)))))
+  (cc "
 !ys-0
-
+b.x c =: d
+")
+  (cc "
+!ys-0
 defn foo():
-  a b.x *c =: d
-"))))
+  b.x c =: d
+")
   )
 
 (defn check-let-bindings [xmap ctx]
@@ -196,13 +201,16 @@ defn foo():
                               (check-let-bindings xmap ctx)
                               xmap)
                        [[lhs rhs] & xmap] xmap
-                       lhs (if (and
-                                 (= 2 (count lhs))
-                                 (= {:Sym 'def} (first lhs))
-                                 (re-find #"(?:^\{|\s)"
-                                   (str (:Sym (second lhs)))))
-                             [(Sym '+def) (second lhs)]
-                             lhs)
+                       [lhs rhs]
+                       (if (and
+                             (= 2 (count lhs))
+                             (= {:Sym 'def} (first lhs))
+                             (re-find #"(?:^\{|\s|\.)"
+                               (str (:Sym (second lhs)))))
+                         (let [[lhs rhs] (construct-binding
+                                           [(second lhs) rhs])]
+                           [[(Sym '+def) lhs] rhs])
+                         [lhs rhs])
                        lhs (if (and (= lhs {:Sym 'do})
                                  (map? rhs)
                                  (not (some #{:xmap :fmap} (keys rhs))))

@@ -15,6 +15,7 @@
 
 (def main-ns (sci/create-ns 'main))
 (def sci-ctx (atom nil))
+(def X (atom false))
 
 (def stream-anchors_ (atom {}))
 (def doc-anchors_ (atom {}))
